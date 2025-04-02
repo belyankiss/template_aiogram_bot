@@ -14,7 +14,6 @@ from log_settings import set_log
 from webhook_settings import Webhook
 
 
-
 class BotDefault:
     def __init__(
             self,
@@ -44,7 +43,7 @@ class BotDefault:
         """
         await self.bot.delete_webhook(drop_pending_updates=True)
 
-    async def add_middleware(
+    def add_middleware(
             self,
             middleware: BaseMiddleware,
             message: bool = True,
