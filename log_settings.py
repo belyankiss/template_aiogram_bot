@@ -12,11 +12,11 @@ def set_log():
     logging.basicConfig(handlers=[InterceptHandler()], level=logging.NOTSET)
 
     # Перенаправляем aiogram-логгеры в Loguru
-    for logger_name in ["aiogram.dispatcher", "aiogram.bot", ""]:
+    for logger_name in ["aiogram.dispatcher", "aiogram.bot"]:
         logging.getLogger(logger_name).handlers = [InterceptHandler()]
 
     logger.remove()  # Удаляем дефолтный handler loguru
     logger.add("errors.log", level="ERROR", format="{time} {level} {message}", rotation="1 day")
-    logger.add(lambda msg: print(msg, end=""), colorize=True,
+    logger.add(lambda msg: print(msg, end=""), colorize=True, level=20,
                format="<green>{time}</green> | <level>{level}</level> | <cyan>{message}</cyan>")
 

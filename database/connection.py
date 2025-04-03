@@ -1,7 +1,11 @@
-from typing import Literal
+from contextlib import asynccontextmanager
+from typing import Literal, AsyncGenerator
 
 from loguru import logger
 from sqlalchemy import text
+from sqlalchemy.exc import OperationalError
+
+from database.models import Base
 
 try:
     from sqlalchemy.ext.asyncio import (
@@ -20,9 +24,14 @@ from settings import settings
 
 
 class Database:
-    def __init__(self, db_type: Literal["aiosqlite", "postgres"]):
+    def __init__(
+            self,
+            db_type: Literal["aiosqlite", "postgres"],
+            create_database: bool = False
+    ):
         self.db_type = db_type
         self.engine = None
+        self._create_database: bool = create_database
         self.Session = None
 
     def create_engine(self):
@@ -44,30 +53,43 @@ class Database:
         # Создание sessionmaker для асинхронной работы
         self.Session = async_sessionmaker(self.engine, class_=AsyncSession, expire_on_commit=False)
 
-    async def get_session(self) -> AsyncSession:
+    @asynccontextmanager
+    async def get_session(self) -> AsyncGenerator:
         """
         Получаем сессию из пула.
         :return: AsyncSession
         """
-        return self.Session()
+        async with self.Session() as session:
+            yield session
+
+    async def create_tables(
+            self,
+            is_delete: bool = False
+    ):
+        if self._create_database:
+            if not self.engine:
+                self.create_engine()
+            try:
+                async with self.engine.begin() as conn:
+                    # Полностью удаляем все таблицы
+                    if is_delete:
+                        await conn.execute(text("DROP SCHEMA IF EXISTS public CASCADE;"))
+                    await conn.execute(text("CREATE SCHEMA IF NOT EXISTS public;"))
+                    # Пересоздаём все таблицы
+                    await conn.run_sync(Base.metadata.create_all)
+                    logger.info("Таблицы успешно созданы/пересозданы.")
+            except OperationalError:
+                    try:
+                        # Попытка создания новой базы данных
+                        async with self.engine.begin() as conn:
+                            if is_delete:
+                                await conn.run_sync(Base.metadata.drop_all)
+                            await conn.run_sync(Base.metadata.create_all)
+                        logger.info(f"База данных {settings.NAME_DATABASE} успешно пересоздана.")
+                    except Exception as ex:
+                        logger.error(f"Не удалось пересоздать базу данных: {ex}")
 
     def __repr__(self):
         return f"Тип базы данных: {self.db_type}"
 
-async def create_database():
-    database = Database("aiosqlite")
-    database.create_engine()
-    a_session = await database.get_session()
-    async with a_session as session:
-        # Пример: Создание таблицы
-        async with session.begin():
-            # Создаем таблицу
-            result = await session.execute(text("""
-                CREATE TABLE IF NOT EXISTS users (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    name TEXT
-                )
-            """))
-            print(result)
 
-        logger.info("Таблица успешно создана!")

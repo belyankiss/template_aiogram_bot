@@ -32,10 +32,6 @@ class SessionMiddleware(BaseMiddleware):
         :param data: Данные для получения в хэндлерах
         :return: Any
         """
-        session = await self.database.get_session()
+        session = self.database.get_session()
         data["session"] = session  # Передаем сессию в хэндлер
-        try:
-            return await handler(event, data)  # Обрабатываем хэндлер с сессией
-        finally:
-            # Важно: закрываем сессию после обработки хэндлера
-            await session.close()
+        return await handler(event, data)  # Обрабатываем хэндлер с сессией
