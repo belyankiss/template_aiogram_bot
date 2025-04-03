@@ -3,7 +3,7 @@ from typing import Callable, Dict, Any, Awaitable
 from aiogram import BaseMiddleware
 from aiogram.types import TelegramObject
 
-from database.connection import Database
+from database.databases import _AbstractDatabase
 
 
 class SessionMiddleware(BaseMiddleware):
@@ -12,7 +12,7 @@ class SessionMiddleware(BaseMiddleware):
     """
     def __init__(
             self,
-            database: Database
+            database: _AbstractDatabase
     ) -> None:
         super().__init__()
         self.database = database
