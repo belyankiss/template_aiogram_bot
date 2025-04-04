@@ -2,7 +2,6 @@ from abc import ABC, abstractmethod
 from typing import TypeVar, Type, Optional, Sequence
 
 from sqlalchemy import select, update
-from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from database.models import Base, UserModel
@@ -11,6 +10,12 @@ T = TypeVar('T', bound=Base)
 
 
 class AbstractRepository(ABC):
+    """
+    Абстрактный класс для создания работы с базой данных
+    """
+    model = None # модель базы данных SQLAlchemy
+
+
     def __init__(
             self,
             session: AsyncSession
@@ -57,6 +62,5 @@ class SQLAlchemyRepository(AbstractRepository):
         result = await self.session.scalars(stmt)
         return result.all()
 
-class UserRepository(SQLAlchemyRepository):
-    model = UserModel
+
 

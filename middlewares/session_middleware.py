@@ -9,7 +9,7 @@ from database.uow.uow import UnitOfWork
 
 class SessionMiddleware(BaseMiddleware):
     """
-    Класс для проброса сессии базы данных в хэндлеры.
+    Класс для проброса UnitOfWork.
     """
     def __init__(
             self,

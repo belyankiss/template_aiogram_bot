@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from contextlib import asynccontextmanager
-from typing import AsyncGenerator, final
+from typing import AsyncGenerator
 
 from loguru import logger
 from sqlalchemy import text
@@ -24,18 +24,30 @@ class _AbstractDatabase(ABC):
 
     @abstractmethod
     def create_engine(self):
+        """
+        Создание асинхронного экземпляра SQLAlchemy engine
+        """
         pass
 
     @abstractmethod
     @asynccontextmanager
     async def get_session(self) -> AsyncGenerator[AsyncSession]:
+        """
+        Асинхронный контекстный менеджер сессии
+        """
         pass
 
     @abstractmethod
     async def build_db(self):
+        """
+        Создание базы данных
+        """
         pass
 
     async def shutdown(self):
+        """
+        Закрытие соединения с БД
+        """
         if self.engine:
             logger.info("Закрытие соединения с БД...")
             await self.engine.dispose()
@@ -58,7 +70,7 @@ class PostgresDatabase(_AbstractDatabase):
         self.port = port
         self.database = database
         super().__init__()
-        
+
     def create_engine(self):
         if self.engine:
             return
@@ -83,16 +95,20 @@ class PostgresDatabase(_AbstractDatabase):
     async def build_db(self, is_delete: bool = False):
         if not self.engine:
             self.create_engine()
-        try:
-            async with self.engine.begin() as conn:
-                if is_delete:
-                    await conn.execute(text("DROP SCHEMA IF EXISTS public CASCADE;"))
-                await conn.execute(text("CREATE SCHEMA IF NOT EXISTS public;"))
-                await conn.run_sync(Base.metadata.create_all)
-                logger.info("Таблицы успешно созданы/пересозданы.")
-        except OperationalError as e:
-            logger.critical(f"Ошибка при создании таблиц: {e}")
-            await conn.rollback()  # <--- Добавление отката в случае ошибки
+        if Base.metadata.tables:
+            try:
+                async with self.engine.begin() as conn:
+                    if is_delete:
+                        await conn.execute(text("DROP SCHEMA IF EXISTS public CASCADE;"))
+                    await conn.execute(text("CREATE SCHEMA IF NOT EXISTS public;"))
+                    await conn.run_sync(Base.metadata.create_all)
+                    logger.info("Таблицы успешно созданы/пересозданы.")
+            except OperationalError as e:
+                logger.critical(f"Ошибка при создании таблиц: {e}")
+                await conn.rollback()  # <--- Добавление отката в случае ошибки
+                raise SystemExit(1)
+        else:
+            logger.critical("Вы не добавили таблицы для создания базы данных. Добавьте таблицы в файле models.")
             raise SystemExit(1)
 
 class AioSQLiteDatabase(_AbstractDatabase):
@@ -126,15 +142,19 @@ class AioSQLiteDatabase(_AbstractDatabase):
     async def build_db(self, is_delete: bool = False):
         if not self.engine:
             self.create_engine()
-        try:
-            async with self.engine.begin() as conn:
-                if is_delete:
-                    await conn.run_sync(Base.metadata.drop_all)
-                await conn.run_sync(Base.metadata.create_all)
-                logger.info("Таблицы успешно созданы.")
-        except OperationalError:
-            logger.critical("Ошибка при создании таблиц.")
-            await conn.rollback()  # <--- Добавление отката в случае ошибки
+        if Base.metadata.tables:
+            try:
+                async with self.engine.begin() as conn:
+                    if is_delete:
+                        await conn.run_sync(Base.metadata.drop_all)
+                    await conn.run_sync(Base.metadata.create_all)
+                    logger.info("Таблицы успешно созданы.")
+            except OperationalError:
+                logger.critical("Ошибка при создании таблиц.")
+                await conn.rollback()  # <--- Добавление отката в случае ошибки
+                raise SystemExit(1)
+        else:
+            logger.critical("Вы не добавили таблицы для создания базы данных. Добавьте таблицы в файле models.")
             raise SystemExit(1)
 
 

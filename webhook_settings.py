@@ -1,6 +1,9 @@
 from pydantic import BaseModel, Field, HttpUrl
 
 class Webhook(BaseModel):
+    """
+    Модель описывающая настройку webhook-уведомления Telegram.
+    """
     url: HttpUrl = Field(
         title="Адрес URL для работы webhook.",
         description="Должен быть валидным HTTPS URL, доступным для Telegram.",
