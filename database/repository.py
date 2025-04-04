@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 from typing import TypeVar, Type, Optional, Sequence
 
 from sqlalchemy import select, update
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from database.models import Base, UserModel
 
@@ -10,6 +10,12 @@ T = TypeVar('T', bound=Base)
 
 
 class AbstractRepository(ABC):
+    def __init__(
+            self,
+            session: async_sessionmaker
+    ):
+        self.session = session
+
     @abstractmethod
     async def get_by_id(self, id: int):
         raise NotImplementedError
@@ -28,10 +34,7 @@ class AbstractRepository(ABC):
 
 
 class SQLAlchemyRepository(AbstractRepository):
-    model = T
-
-    def __init__(self, session: AsyncSession) -> None:
-        self.session = session
+    model = Type[T]
 
     async def get_by_id(self, id: int) -> Optional[T]:
         return await self.session.get(self.model, id)

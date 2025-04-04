@@ -4,6 +4,7 @@ from aiogram import BaseMiddleware
 from aiogram.types import TelegramObject
 
 from database.databases import _AbstractDatabase
+from database.uow import UnitOfWork
 
 
 class SessionMiddleware(BaseMiddleware):
@@ -16,8 +17,6 @@ class SessionMiddleware(BaseMiddleware):
     ) -> None:
         super().__init__()
         self.database = database
-        if not self.database.engine:
-            self.database.create_engine()
 
     async def __call__(
             self,
@@ -32,6 +31,7 @@ class SessionMiddleware(BaseMiddleware):
         :param data: Данные для получения в хэндлерах
         :return: Any
         """
-        session = self.database.get_session()
-        data["session"] = session  # Передаем сессию в хэндлер
+
+        uow = UnitOfWork(self.database.async_session_maker)
+        data["uow"] = uow
         return await handler(event, data)  # Обрабатываем хэндлер с сессией

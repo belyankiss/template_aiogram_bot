@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from contextlib import asynccontextmanager
-from typing import AsyncGenerator
+from typing import AsyncGenerator, final
 
 from loguru import logger
 from sqlalchemy import text
@@ -17,9 +17,10 @@ from database.models import Base
 class _AbstractDatabase(ABC):
     engine = None
 
-    @abstractmethod
     def __init__(self, *args, **kwargs):
-        pass
+        self.engine = None
+        self.async_session_maker = None
+        self.create_engine()
 
     @abstractmethod
     def create_engine(self):
@@ -56,9 +57,10 @@ class PostgresDatabase(_AbstractDatabase):
         self.host = host
         self.port = port
         self.database = database
-        self.engine = None
-        self._async_session_maker = None
-        self.create_engine()
+        super().__init__()
+
+
+
 
     def create_engine(self):
         if self.engine:
@@ -71,14 +73,14 @@ class PostgresDatabase(_AbstractDatabase):
             pool_recycle=1800,  # Закрывает соединения, которые простаивают > 30 минут
             pool_pre_ping=True,  # Проверяет соединение перед выдачей из пула
             )
-        self._async_session_maker = async_sessionmaker(self.engine, class_=AsyncSession, expire_on_commit=False)
+        self.async_session_maker = async_sessionmaker(self.engine, class_=AsyncSession, expire_on_commit=False)
 
     @asynccontextmanager
     async def get_session(self) -> AsyncGenerator[AsyncSession]:
         if self.engine is None:
             logger.warning("Движок БД не был создан! Создаю автоматически...")
             self.create_engine()  # <-- Автоматическое создание при первом вызове
-        async with self._async_session_maker() as session:
+        async with self.async_session_maker() as session:
             yield session
 
     async def build_db(self, is_delete: bool = False):
@@ -102,9 +104,9 @@ class AioSQLiteDatabase(_AbstractDatabase):
             db_path: str,
     ):
         self.db_path = db_path
-        self.engine = None
-        self._async_session_maker = None
-        self.create_engine()
+        super().__init__()
+
+
 
     def create_engine(self):
         if self.engine:
@@ -113,14 +115,15 @@ class AioSQLiteDatabase(_AbstractDatabase):
             f"sqlite+aiosqlite:///{self.db_path}",
             echo=False,
         )
-        self._async_session_maker = async_sessionmaker(self.engine, class_=AsyncSession, expire_on_commit=False)
+        self.async_session_maker = async_sessionmaker(self.engine, class_=AsyncSession, expire_on_commit=False)
+
 
     @asynccontextmanager
     async def get_session(self) -> AsyncGenerator[AsyncSession]:
         if self.engine is None:
             logger.warning("Движок БД не был создан! Создаю автоматически...")
             self.create_engine()  # <-- Автоматическое создание при первом вызове
-        async with self._async_session_maker() as session:
+        async with self.async_session_maker() as session:
             yield session
 
     async def build_db(self, is_delete: bool = False):
