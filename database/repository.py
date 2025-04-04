@@ -2,7 +2,8 @@ from abc import ABC, abstractmethod
 from typing import TypeVar, Type, Optional, Sequence
 
 from sqlalchemy import select, update
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from database.models import Base, UserModel
 
@@ -12,7 +13,7 @@ T = TypeVar('T', bound=Base)
 class AbstractRepository(ABC):
     def __init__(
             self,
-            session: async_sessionmaker
+            session: AsyncSession
     ):
         self.session = session
 
@@ -45,6 +46,11 @@ class SQLAlchemyRepository(AbstractRepository):
 
     async def add_one(self, obj: T):
         self.session.add(obj)
+
+    async def get_by_filter(self, filters: dict):
+        stmt = select(self.model).filter_by(**filters)
+        return await self.session.scalar(stmt)
+
 
     async def get_all(self, data: dict) -> Sequence[T]:
         stmt = select(self.model).filter_by(**data)

@@ -58,10 +58,7 @@ class PostgresDatabase(_AbstractDatabase):
         self.port = port
         self.database = database
         super().__init__()
-
-
-
-
+        
     def create_engine(self):
         if self.engine:
             return

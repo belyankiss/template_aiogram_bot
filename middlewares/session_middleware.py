@@ -4,7 +4,7 @@ from aiogram import BaseMiddleware
 from aiogram.types import TelegramObject
 
 from database.databases import _AbstractDatabase
-from database.uow import UnitOfWork
+from database.uow.uow import UnitOfWork
 
 
 class SessionMiddleware(BaseMiddleware):
