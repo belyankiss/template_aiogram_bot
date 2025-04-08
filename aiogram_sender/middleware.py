@@ -3,7 +3,7 @@ from typing import Callable, Dict, Any, Awaitable, Optional, List, Union
 from aiogram import BaseMiddleware
 from aiogram.types import TelegramObject, Message, CallbackQuery
 
-from aiogram_sender.sender import Send
+from aiogram_sender import Sender
 
 
 class WindowMiddleware(BaseMiddleware):
@@ -22,17 +22,13 @@ class WindowMiddleware(BaseMiddleware):
                        data: Dict[str, Any],
                        ) -> Any:
 
-        state = data.get("state")
 
-        sender = Send(event, state)
+        sender = Sender(event)
 
         data["sender"] = sender
 
         if self._private and _check_chat_type(event):
             return await handler(event, data)
-
-
-
         return await handler(event, data)
 
 def _check_chat_type(event: Union[Message, CallbackQuery]) -> bool:

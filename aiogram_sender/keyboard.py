@@ -1,46 +1,31 @@
 from typing import Optional, List, Union, Iterable
 
-from aiogram.types import InlineKeyboardButton, KeyboardButton, InlineKeyboardMarkup, ReplyKeyboardMarkup
+from aiogram.types import InlineKeyboardButton, KeyboardButton
 from aiogram.utils.keyboard import InlineKeyboardBuilder, ReplyKeyboardBuilder
-
-from aiogram_sender.exceptions import ButtonError
-
+from pydantic import BaseModel
 
 
+class Keyboard(BaseModel):
+    @classmethod
+    def create_list(cls) -> Optional[List[Union[InlineKeyboardButton, KeyboardButton]]]:
+        return [v.default for v in cls.model_fields.values() if v.default is not None]
 
-
-class Keyboard:
-    """
-    Класс создания клавиатуры!
-
-    :param buttons: Список кнопок InlineKeyboardButton или KeyboardButton
-    :param sizes: Размер клавиатуры. Итерируемый объект целых чисел. Значение по умолчанию - (1,)
-    """
-    def __init__(
-            self,
-            buttons: Optional[List[Union[InlineKeyboardButton, KeyboardButton]]],
-            sizes: Iterable[int] = (1,)
+    @classmethod
+    def create_reply_markup(
+            cls,
+            sizes: Iterable[int],
+            buttons: Optional[List[Union[InlineKeyboardButton, KeyboardButton]]] = None
     ):
-        self.buttons: Optional[List[Union[InlineKeyboardButton, KeyboardButton]]] = buttons
-        self.sizes: Iterable[int] = sizes
-        self._reply_markup = None
-
-    def create_keyboard(self) -> Union[InlineKeyboardMarkup, ReplyKeyboardMarkup, None]:
-        """
-        Основной метод создания клавиатуры.
-        :return: Union[InlineKeyboardMarkup, ReplyKeyboardMarkup, None]
-        """
-        if not self.buttons:
+        if not buttons:
             return None
-        if not all(isinstance(btn, type(self.buttons[0])) for btn in self.buttons):
-            raise ButtonError("Все кнопки должны быть одного типа (InlineKeyboardButton или KeyboardButton)")
-        if isinstance(self.buttons[0], InlineKeyboardButton):
-            b = InlineKeyboardBuilder()
+        if isinstance(buttons[0], InlineKeyboardButton):
+            builder = InlineKeyboardBuilder()
+            button_type = InlineKeyboardButton
         else:
-            b = ReplyKeyboardBuilder()
-        b.add(*self.buttons)
-        self._reply_markup = b.adjust(*self.sizes).as_markup(resize_keyboard=True)
-        return self._reply_markup
+            builder = ReplyKeyboardBuilder()
+            button_type = KeyboardButton
+        for button in buttons:
+            if isinstance(button, button_type):
+                builder.add(button)
 
-    def __repr__(self):
-        return f"{self._reply_markup}"
+        return builder.adjust(*sizes).as_markup(resize_keyboard=True)
